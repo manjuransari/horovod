@@ -225,7 +225,7 @@ def main():
                 f'      - name: Configure Buildkite Build\n'
                 f'        id: config-buildkite\n'
                 f'        env:\n'
-                f'          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}\n'
+                f'          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n'
                 f'        run: |\n'
                 f'          branch="${{{{ github.event.pull_request.head.ref || github.ref }}}}"\n'
                 f'          branch="${{branch#"refs/heads/"}}"\n'
@@ -451,21 +451,21 @@ def main():
                 f'            TORCHVISION: 0.7.0\n'
                 f'            MXNET: 1.5.0\n'
                 f'\n'
-                f'          - image: test-cpu-gloo-py3_8-tf2_2_0-keras2_3_1-torch1_8_1-mxnet1_5_0\n'
+                f'          - image: test-cpu-gloo-py3_8-tf2_5_1-keras2_4_3-torch1_8_1-mxnet1_5_0\n'
                 f'            HOROVOD_WITHOUT_MPI: 1\n'
                 f'            HOROVOD_WITH_GLOO: 1\n'
-                f'            TENSORFLOW: 2.2.0\n'
-                f'            KERAS: 2.3.1\n'
+                f'            TENSORFLOW: 2.5.1\n'
+                f'            KERAS: 2.5.0rc0\n'
                 f'            PYTORCH: 1.8.1\n'
                 f'            PYTORCH_LIGHTNING: 1.3.8\n'
                 f'            TORCHVISION: 0.9.1\n'
                 f'            MXNET: 1.5.0\n'
                 f'\n'
-                f'          - image: test-openmpi-cpu-gloo-py3_8-tf2_3_0-keras2_3_1-torch1_9_0-mxnet1_5_0\n'
+                f'          - image: test-openmpi-cpu-gloo-py3_8-tf2_6_0-keras2_6_0-torch1_9_0-mxnet1_5_0\n'
                 f'            HOROVOD_WITH_MPI: 1\n'
                 f'            HOROVOD_WITH_GLOO: 1\n'
-                f'            TENSORFLOW: 2.3.0\n'
-                f'            KERAS: 2.3.1\n'
+                f'            TENSORFLOW: 2.6.0\n'
+                f'            KERAS: 2.6.0\n'
                 f'            PYTORCH: 1.9.0\n'
                 f'            PYTORCH_LIGHTNING: 1.3.8\n'
                 f'            TORCHVISION: 0.10.0\n'
@@ -558,7 +558,7 @@ def main():
                 f'        env:\n'
                 f'          PIPELINE: "horovod/horovod"\n'
                 f'          # COMMIT is taken from GITHUB_SHA\n'
-                f'          BRANCH: "${{{{ needs.init-workflow.outputs.buildkite-branch-label }}}}"\n'
+                f'          BRANCH: "${{{{ needs.init-workflow.outputs.buildkite-branch-label }}}} ({mode})"\n'
                 f'          # empty MESSAGE will be filled by Buildkite from commit message\n'
                 f'          MESSAGE: "${{{{ needs.init-workflow.outputs.buildkite-message }}}}"\n'
                 f'          BUILDKITE_API_ACCESS_TOKEN: ${{{{ secrets.BUILDKITE_TOKEN }}}}\n'
@@ -802,7 +802,7 @@ def main():
             build_and_test_images(id='build-and-test-heads', name='Build and Test heads', needs=['build-and-test'], images=allhead_images, parallel_images='', tests_per_image=tests_per_image, tests=tests),
             build_and_test_macos(id='build-and-test-macos', name='Build and Test macOS', needs=['build-and-test']),
             trigger_buildkite_job(id='buildkite', name='Build and Test GPU (on Builtkite)', needs=['build-and-test'], mode='GPU NON HEADS'),
-            trigger_buildkite_job(id='buildkite-heads', name='Build and Test GPU heads (on Builtkite)', needs=['buildkite'], mode='GPU HEADS'),
+            trigger_buildkite_job(id='buildkite-heads', name='Build and Test GPU heads (on Builtkite)', needs=['build-and-test'], mode='GPU HEADS'),
             publish_docker_images(needs=['build-and-test', 'buildkite'], images=['horovod', 'horovod-cpu', 'horovod-ray']),
             sync_files(needs=['init-workflow'])
         )

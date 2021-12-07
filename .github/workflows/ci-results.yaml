@@ -72,14 +72,27 @@ jobs:
       github.event.workflow_run.head_repository.fork
 
     steps:
+      - name: Create check status
+        continue-on-error: true
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data "{
+            \"state\": \"pending\",
+            \"context\": \"${GITHUB_WORKFLOW} / Build and Test GPU (on Builtkite)\",
+            \"target_url\": \"https://github.com/horovod/horovod/actions/runs/${GITHUB_RUN_ID}\"
+          }"
+
       - name: Trigger Buildkite Pipeline
         id: buildkite
         uses: EnricoMi/trigger-pipeline-action@master
         env:
           PIPELINE: "horovod/horovod"
           COMMIT: "${{ fromJSON( needs.ci-workflow.outputs.pr-json ).merge_sha }}"
-          BRANCH: "${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}"
-          MESSAGE: "${{ github.event.workflow_run.head_commit.message }} (release versions)"
+          BRANCH: "${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }} (GPU NON HEADS)"
+          MESSAGE: "${{ github.event.workflow_run.head_commit.message }}"
           BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
           BUILD_ENV_VARS: "{\"PIPELINE_MODE\": \"GPU NON HEADS\"}"
 
@@ -110,9 +123,24 @@ jobs:
           echo "::warning::Buildkite pipeline did not pass: ${{ steps.buildkite.outputs.url }}"
           exit 1
 
+      - name: Update check status
+        # job status can be success, failure, or cancelled but status state only allows for error, failure, pending, or success
+        if: always() && job.status != 'cancelled'
+        continue-on-error: true
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data "{
+            \"state\": \"${{ job.status }}\",
+            \"context\": \"${GITHUB_WORKFLOW} / Build and Test GPU (on Builtkite)\",
+            \"target_url\": \"https://github.com/horovod/horovod/actions/runs/${GITHUB_RUN_ID}\"
+          }"
+
   buildkite-heads:
     name: "Build and Test GPU heads (on Builtkite)"
-    needs: [ci-workflow, buildkite]
+    needs: [ci-workflow]
     runs-on: ubuntu-latest
     # only run if CI workflow's build-and-test job succeeded and CI workflow ran on a fork
     if: >
@@ -120,14 +148,27 @@ jobs:
       github.event.workflow_run.head_repository.fork
 
     steps:
+      - name: Create check status
+        continue-on-error: true
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data "{
+            \"state\": \"pending\",
+            \"context\": \"${GITHUB_WORKFLOW} / Build and Test GPU heads (on Builtkite)\",
+            \"target_url\": \"https://github.com/horovod/horovod/actions/runs/${GITHUB_RUN_ID}\"
+          }"
+
       - name: Trigger Buildkite Pipeline
         id: buildkite
         uses: EnricoMi/trigger-pipeline-action@master
         env:
           PIPELINE: "horovod/horovod"
           COMMIT: "${{ fromJSON( needs.ci-workflow.outputs.pr-json ).merge_sha }}"
-          BRANCH: "${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}"
-          MESSAGE: "${{ github.event.workflow_run.head_commit.message }} (head versions)"
+          BRANCH: "${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }} (GPU HEADS)"
+          MESSAGE: "${{ github.event.workflow_run.head_commit.message }}"
           BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
           BUILD_ENV_VARS: "{\"PIPELINE_MODE\": \"GPU HEADS\"}"
 
@@ -158,6 +199,21 @@ jobs:
           echo "::warning::Buildkite pipeline did not pass: ${{ steps.buildkite.outputs.url }}"
           exit 1
 
+      - name: Update check status
+        # job status can be success, failure, or cancelled but status state only allows for error, failure, pending, or success
+        if: always() && job.status != 'cancelled'
+        continue-on-error: true
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data "{
+            \"state\": \"${{ job.status }}\",
+            \"context\": \"${GITHUB_WORKFLOW} / Build and Test GPU heads (on Builtkite)\",
+            \"target_url\": \"https://github.com/horovod/horovod/actions/runs/${GITHUB_RUN_ID}\"
+          }"
+
   publish-test-results:
     name: "Publish Unit Tests Results"
     needs: [ci-workflow, buildkite, buildkite-heads]
@@ -177,7 +233,7 @@ jobs:
 
       - name: Download and Extract Artifacts
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifacts && cd artifacts
 
